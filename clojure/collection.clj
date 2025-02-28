@@ -1,0 +1,1 @@
+(time (reduce + (range 1000000)))

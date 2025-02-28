@@ -1,0 +1,1 @@
+(time (apply str (repeat 1000000 "Hello")))
