@@ -6,14 +6,51 @@ GO_DIR="./golang"
 PY_DIR="./python"
 CLJ_DIR="./clojure"
 LOG_FILE="execution_results.log"
+RESULTS_FILE="execution_results.md"
+TEMP_RESULTS="temp_results.txt"
 
 # Clear previous logs
 echo "Running benchmarks..." > "$LOG_FILE"
+> "$TEMP_RESULTS"  # Create an empty temp results file
 
 run_test() {
     echo "Running $1..." | tee -a "$LOG_FILE"
-    eval "$2" 2>&1 | tee -a "$LOG_FILE"
+    OUTPUT=$(eval "$2" 2>&1 | tee -a "$LOG_FILE")
     echo "----------------------------------" >> "$LOG_FILE"
+
+    # Extract execution time (handles `ms`, `seconds`, `µs`)
+    TIME=$(echo "$OUTPUT" | grep -oE 'Time: [0-9.]+ (ms|seconds|µs)' | awk '{print $2}')
+    UNIT=$(echo "$OUTPUT" | grep -oE 'Time: [0-9.]+ (ms|seconds|µs)' | awk '{print $3}')
+
+    # Extract Clojure times (formatted as `"Elapsed time: X msecs"`)
+    if [[ -z "$TIME" ]]; then
+        TIME=$(echo "$OUTPUT" | grep -oE '"Elapsed time: [0-9.]+' | awk '{print $3}')
+        UNIT="ms"
+    fi
+
+    # Handle Golang times (fallback when standard extraction fails)
+    if [[ -z "$TIME" ]]; then
+        TIME=$(echo "$OUTPUT" | grep -oE '[0-9.]+(ms|µs)' | grep -oE '[0-9.]+' | head -1)
+        UNIT=$(echo "$OUTPUT" | grep -oE '[0-9.]+(ms|µs)' | grep -oE '(ms|µs)' | head -1)
+    fi
+
+    # Convert seconds to milliseconds
+    if [[ "$UNIT" == "seconds" ]]; then
+        TIME=$(echo "$TIME * 1000" | bc -l)
+    fi
+
+    # Convert microseconds (µs) to milliseconds
+    if [[ "$UNIT" == "µs" ]]; then
+        TIME=$(echo "scale=6; $TIME / 1000" | bc -l)
+    fi
+
+    # Format time correctly
+    if [[ -n "$TIME" ]]; then
+        FORMATTED_TIME=$(printf "%.2f" "$TIME") # Ensures two decimal places
+        echo "$1,$FORMATTED_TIME" >> "$TEMP_RESULTS"
+    else
+        echo "$1,N/A" >> "$TEMP_RESULTS"
+    fi
 }
 
 # TypeScript Tests (Node.js required)
@@ -56,4 +93,26 @@ else
     echo "Clojure CLI not found. Skipping Clojure tests." | tee -a "$LOG_FILE"
 fi
 
-echo "Benchmark completed. Results saved to $LOG_FILE"
+# Generate Markdown Table
+{
+    echo "# Benchmark Results"
+    echo ""
+    echo "| Test Name                   | TypeScript (ms) | Golang (ms) | Python (ms) | Clojure (ms) |"
+    echo "|-----------------------------|----------------|-------------|-------------|--------------|"
+
+    TESTS=("Arithmetic" "String Manipulation" "Collection Processing" "Concurrency Test")
+
+    for TEST in "${TESTS[@]}"; do
+        TS=$(grep "TypeScript $TEST" "$TEMP_RESULTS" | cut -d',' -f2)
+        GO=$(grep "Golang $TEST" "$TEMP_RESULTS" | cut -d',' -f2)
+        PY=$(grep "Python $TEST" "$TEMP_RESULTS" | cut -d',' -f2)
+        CLJ=$(grep "Clojure $TEST" "$TEMP_RESULTS" | cut -d',' -f2)
+
+        echo "| $TEST | ${TS:-N/A} | ${GO:-N/A} | ${PY:-N/A} | ${CLJ:-N/A} |"
+    done
+} > "$RESULTS_FILE"
+
+# Cleanup temp file
+rm "$TEMP_RESULTS"
+
+echo "Benchmark completed. Results saved to $LOG_FILE and $RESULTS_FILE"
