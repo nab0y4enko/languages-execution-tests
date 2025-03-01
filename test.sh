@@ -93,12 +93,18 @@ else
     echo "Clojure CLI not found. Skipping Clojure tests." | tee -a "$LOG_FILE"
 fi
 
+TS_LOC=$((sed -e '$a\' $TS_DIR/*.ts 2>/dev/null; echo "") | wc -l)
+GO_LOC=$((sed -e '$a\' $GO_DIR/*.go 2>/dev/null; echo "") | wc -l)
+PY_LOC=$((sed -e '$a\' $PY_DIR/*.py 2>/dev/null; echo "") | wc -l)
+CLJ_LOC=$((sed -e '$a\' $CLJ_DIR/*.clj 2>/dev/null; echo "") | wc -l)
+
 # Generate Markdown Table
 {
     echo "# Benchmark Results"
     echo ""
     echo "| Test Name                   | TypeScript (ms) | Golang (ms) | Python (ms) | Clojure (ms) |"
     echo "|-----------------------------|----------------|-------------|-------------|--------------|"
+    echo "| Lines of Code (LOC)         | ${TS_LOC:-N/A} | ${GO_LOC:-N/A} | ${PY_LOC:-N/A} | ${CLJ_LOC:-N/A} |"
 
     TESTS=("Arithmetic" "String Manipulation" "Collection Processing" "Concurrency Test")
 
