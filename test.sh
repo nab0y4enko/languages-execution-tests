@@ -5,6 +5,7 @@ TS_DIR="./typescript"
 GO_DIR="./golang"
 PY_DIR="./python"
 CLJ_DIR="./clojure"
+SWIFT_DIR="./swift"
 LOG_FILE="execution_results.log"
 RESULTS_FILE="execution_results.md"
 TEMP_RESULTS="temp_results.txt"
@@ -93,18 +94,30 @@ else
     echo "Clojure CLI not found. Skipping Clojure tests." | tee -a "$LOG_FILE"
 fi
 
-TS_LOC=$((sed -e '$a\' $TS_DIR/*.ts 2>/dev/null; echo "") | wc -l)
-GO_LOC=$((sed -e '$a\' $GO_DIR/*.go 2>/dev/null; echo "") | wc -l)
-PY_LOC=$((sed -e '$a\' $PY_DIR/*.py 2>/dev/null; echo "") | wc -l)
-CLJ_LOC=$((sed -e '$a\' $CLJ_DIR/*.clj 2>/dev/null; echo "") | wc -l)
+# Swift Tests
+if command -v swift &> /dev/null; then
+    run_test "Swift Arithmetic" "swift $SWIFT_DIR/arithmetic.swift"
+    run_test "Swift String Manipulation" "swift $SWIFT_DIR/string_manipulation.swift"
+    run_test "Swift Collection Processing" "swift $SWIFT_DIR/collection.swift"
+    run_test "Swift Concurrency Test" "swift $SWIFT_DIR/concurrency.swift"
+else
+    echo "Swift not found. Skipping Swift tests." | tee -a "$LOG_FILE"
+fi
+
+# Count lines of code (LOC)
+TS_LOC=$(wc -l $TS_DIR/*.ts 2>/dev/null | tail -n 1 | awk '{print $1}')
+GO_LOC=$(wc -l $GO_DIR/*.go 2>/dev/null | tail -n 1 | awk '{print $1}')
+PY_LOC=$(wc -l $PY_DIR/*.py 2>/dev/null | tail -n 1 | awk '{print $1}')
+CLJ_LOC=$(wc -l $CLJ_DIR/*.clj 2>/dev/null | tail -n 1 | awk '{print $1}')
+SWIFT_LOC=$(wc -l $SWIFT_DIR/*.swift 2>/dev/null | tail -n 1 | awk '{print $1}')
 
 # Generate Markdown Table
 {
     echo "# Benchmark Results"
     echo ""
-    echo "| Test Name                   | TypeScript (ms) | Golang (ms) | Python (ms) | Clojure (ms) |"
-    echo "|-----------------------------|----------------|-------------|-------------|--------------|"
-    echo "| Lines of Code (LOC)         | ${TS_LOC:-N/A} | ${GO_LOC:-N/A} | ${PY_LOC:-N/A} | ${CLJ_LOC:-N/A} |"
+    echo "| Test Name                   | TypeScript (ms) | Golang (ms) | Python (ms) | Clojure (ms) | Swift (ms) |"
+    echo "|-----------------------------|----------------|-------------|-------------|--------------|------------|"
+    echo "| Lines of Code (LOC)         | ${TS_LOC:-N/A} | ${GO_LOC:-N/A} | ${PY_LOC:-N/A} | ${CLJ_LOC:-N/A} | ${SWIFT_LOC:-N/A} |"
 
     TESTS=("Arithmetic" "String Manipulation" "Collection Processing" "Concurrency Test")
 
@@ -113,8 +126,9 @@ CLJ_LOC=$((sed -e '$a\' $CLJ_DIR/*.clj 2>/dev/null; echo "") | wc -l)
         GO=$(grep "Golang $TEST" "$TEMP_RESULTS" | cut -d',' -f2)
         PY=$(grep "Python $TEST" "$TEMP_RESULTS" | cut -d',' -f2)
         CLJ=$(grep "Clojure $TEST" "$TEMP_RESULTS" | cut -d',' -f2)
+        SWIFT=$(grep "Swift $TEST" "$TEMP_RESULTS" | cut -d',' -f2)
 
-        echo "| $TEST | ${TS:-N/A} | ${GO:-N/A} | ${PY:-N/A} | ${CLJ:-N/A} |"
+        echo "| $TEST | ${TS:-N/A} | ${GO:-N/A} | ${PY:-N/A} | ${CLJ:-N/A} | ${SWIFT:-N/A} |"
     done
 } > "$RESULTS_FILE"
 
