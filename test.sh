@@ -96,10 +96,19 @@ fi
 
 # Swift Tests
 if command -v swift &> /dev/null; then
-    run_test "Swift Arithmetic" "swift $SWIFT_DIR/arithmetic.swift"
-    run_test "Swift String Manipulation" "swift $SWIFT_DIR/string_manipulation.swift"
-    run_test "Swift Collection Processing" "swift $SWIFT_DIR/collection.swift"
-    run_test "Swift Concurrency Test" "swift $SWIFT_DIR/concurrency.swift"
+    # Compile Swift files with optimizations first for fair comparison
+    swiftc -O "$SWIFT_DIR/arithmetic.swift" -o "$SWIFT_DIR/arithmetic_bin" 2>/dev/null
+    swiftc -O "$SWIFT_DIR/string_manipulation.swift" -o "$SWIFT_DIR/string_manipulation_bin" 2>/dev/null
+    swiftc -O "$SWIFT_DIR/collection.swift" -o "$SWIFT_DIR/collection_bin" 2>/dev/null
+    swiftc -O "$SWIFT_DIR/concurrency.swift" -o "$SWIFT_DIR/concurrency_bin" 2>/dev/null
+    
+    run_test "Swift Arithmetic" "$SWIFT_DIR/arithmetic_bin"
+    run_test "Swift String Manipulation" "$SWIFT_DIR/string_manipulation_bin"
+    run_test "Swift Collection Processing" "$SWIFT_DIR/collection_bin"
+    run_test "Swift Concurrency Test" "$SWIFT_DIR/concurrency_bin"
+    
+    # Clean up compiled binaries
+    rm -f "$SWIFT_DIR/arithmetic_bin" "$SWIFT_DIR/string_manipulation_bin" "$SWIFT_DIR/collection_bin" "$SWIFT_DIR/concurrency_bin"
 else
     echo "Swift not found. Skipping Swift tests." | tee -a "$LOG_FILE"
 fi
